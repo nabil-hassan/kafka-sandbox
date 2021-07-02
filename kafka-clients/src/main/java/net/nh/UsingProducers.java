@@ -3,16 +3,55 @@
  */
 package net.nh;
 
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.temporal.ChronoUnit;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
 
 public class UsingProducers {
 
     private static final Logger LOG = LoggerFactory.getLogger(UsingProducers.class);
+    private static final String BOOTSTRAP_SERVERS = "localhost:9092";
+    private static final String STRING_SERIALIZER = StringSerializer.class.getName();
+    private static final String TEST_TOPIC = "testTopic";
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         LOG.info("Using producers");
 
+        sendMessages();
+    }
+
+    private static void sendMessages() throws InterruptedException {
+        Properties producerProps = new Properties();
+        producerProps.put(BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        producerProps.put(KEY_SERIALIZER_CLASS_CONFIG, STRING_SERIALIZER);
+        producerProps.put(VALUE_SERIALIZER_CLASS_CONFIG, STRING_SERIALIZER);
+
+        KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps);
+
+        ProducerRecord<String, String> message_no_key = new ProducerRecord<>(TEST_TOPIC, "Test message from a Java client");
+        ProducerRecord<String, String> message_with_key = new ProducerRecord<>(TEST_TOPIC, "KEY-1", "Test message from a Java client");
+        ProducerRecord<String, String> message_with_key_and_partition = new ProducerRecord<>(TEST_TOPIC, 0, "KEY-1", "Test message from a Java client");
+
+        new Thread(() -> {
+            producer.send(message_no_key, (metadata, ex) -> {
+                if (metadata != null) {
+                    LOG.info("Successfully sent message to Kafka: {}", metadata);
+                } else {
+                    LOG.error("Unable to send message tov Kafka", ex);
+                }
+            });
+        }).start();
 
     }
 }
